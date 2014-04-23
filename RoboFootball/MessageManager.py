@@ -23,7 +23,7 @@ class DummySerial:
             print ord(m)
 
     def read(self, count=1):
-        self.written_messages -= 1
+        self.written_messages -= count
         return 'A'
 
     def inWaiting(self):
@@ -124,7 +124,7 @@ class Message:
 
 class MessageWrapper:
     message = None
-    robot_id = 0
+    robot_id = 0  # robot id is a capital letter (A, B, C or D)
 
     received_at = 0
     last_sent_at = 0
@@ -166,6 +166,9 @@ class MessageWrapper:
     def receive_response(self, response):
         if response == self.expected_response:
             self.message_sent_successfully = True
+            return True
+        else:
+            return False
 
     def force_send(self):
         self.message_sent_successfully = False
@@ -179,11 +182,11 @@ class MessageWrapper:
         return response
 
 
-
 class MessageManager(threading.Thread):
     ser = serial.Serial()
-    messages = dict()
+    wrapped_messages = dict()
     in_queue = Queue.LifoQueue()
+    response_queue = Queue.Queue()
     stoprequest = threading.Event()
     send_needed = dict()
 
@@ -197,11 +200,13 @@ class MessageManager(threading.Thread):
             print("Port at: {} with baud rate: {} cannot be opened".format(port_id, baud_rate))
             quit()
 
+        self.wrapped_messages[ord('A')] = MessageWrapper()
+        self.wrapped_messages[ord('B')] = MessageWrapper()
+        self.wrapped_messages[ord('C')] = MessageWrapper()
+        self.wrapped_messages[ord('D')] = MessageWrapper()
+
     def set_robot_message(self, message):
-        if isinstance(message, Message):
-            self.messages[message.robot_id] = str(message)
-        else:
-            raise TypeError("message must be of type Message")
+        self.wrapped_messages[message.robot_id].set_message(message)
 
     def run(self):
         while not self.stoprequest.isSet():
@@ -209,20 +214,20 @@ class MessageManager(threading.Thread):
             if not self.in_queue.empty():
                 new_message = self.in_queue.get(False)
                 self.set_robot_message(new_message)
-                self.send_needed[new_message.robot_id] = True
+                #self.send_needed[new_message.robot_id] = True
 
             # send if new data or negative response
-            for m in self.messages:
-                if self.send_needed[m]:
-                    self.ser.write(str(self.messages[m]))
+            for m in self.wrapped_messages:
+                if m.is_message_ready():
+                    self.ser.write(m.parse_message())
 
             # check response
             if self.ser.inWaiting() > 0:
                 response = ord(self.ser.read(1))
-                if response in self.send_needed:
-                    self.send_needed[response] = False
+                for m in self.wrapped_messages:
+                    m.receive_response(response)
 
-            #time.sleep(0.001)
+            time.sleep(0.001)
 
     def join(self, timeout=None):
         self.ser.close()
