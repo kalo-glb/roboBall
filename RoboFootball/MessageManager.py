@@ -13,18 +13,18 @@ class DummySerial:
 
     def write(self, message):
         self.written_messages += 1
-        DummySerial.write(message)
-
-        print('\n')
-
-    @staticmethod
-    def write(message):
+        #DummySerial.write(message)
         for m in message:
             print ord(m)
 
+        print('\n')
+
+    #@staticmethod
+    #def write(message):
+
     def read(self, count=1):
         self.written_messages -= count
-        return 'A'
+        return chr(46)
 
     def inWaiting(self):
         return self.written_messages
@@ -161,6 +161,7 @@ class MessageWrapper:
         return result
 
     def parse_message(self):
+        self.last_sent_at = time.time()
         return str(self.message)
 
     def receive_response(self, response):
@@ -195,15 +196,15 @@ class MessageManager(threading.Thread):
         self.in_queue = in_queue
         self.stoprequest = threading.Event()
         try:
-            self.ser = serial.Serial(port_id, baud_rate)
+            self.ser = serial.Serial(port_id, baud_rate) #DummySerial()#
         except serial.serialutil.SerialException:
             print("Port at: {} with baud rate: {} cannot be opened".format(port_id, baud_rate))
             quit()
 
-        self.wrapped_messages[ord('A')] = MessageWrapper()
-        self.wrapped_messages[ord('B')] = MessageWrapper()
-        self.wrapped_messages[ord('C')] = MessageWrapper()
-        self.wrapped_messages[ord('D')] = MessageWrapper()
+        self.wrapped_messages[ord('A')] = MessageWrapper(Message(65))
+        #self.wrapped_messages[ord('B')] = MessageWrapper(Message(66))
+        #self.wrapped_messages[ord('C')] = MessageWrapper(Message(67))
+        #self.wrapped_messages[ord('D')] = MessageWrapper(Message(68))
 
     def set_robot_message(self, message):
         self.wrapped_messages[message.robot_id].set_message(message)
@@ -218,14 +219,14 @@ class MessageManager(threading.Thread):
 
             # send if new data or negative response
             for m in self.wrapped_messages:
-                if m.is_message_ready():
-                    self.ser.write(m.parse_message())
+                if self.wrapped_messages[m].is_message_ready():
+                    self.ser.write(self.wrapped_messages[m].parse_message())
 
             # check response
             if self.ser.inWaiting() > 0:
                 response = ord(self.ser.read(1))
                 for m in self.wrapped_messages:
-                    m.receive_response(response)
+                    self.wrapped_messages[m].receive_response(response)
 
             time.sleep(0.001)
 

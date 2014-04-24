@@ -89,7 +89,7 @@ class RobotControl:
 
 
 message_in_queue = Queue.LifoQueue()
-messenger_thread = MessageManager(message_in_queue, '/dev/ttyACM0', 9600)
+messenger_thread = MessageManager(message_in_queue, '/dev/ttyACM1', 115200)
 
 if __name__ == "__main__":
     messenger_thread.start()

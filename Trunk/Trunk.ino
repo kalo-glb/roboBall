@@ -24,9 +24,9 @@ byte message[5] = {0, 0, 0, 0, 0};
 
 void PositiveResponse(boolean type)
 {
-    byte response = (ThisRobotId - 'A') << 6;
-    responce += (ControlFlags % 3) << 4
-    responce += (LMSpeed + RMSpeed) % 16
+    byte response = (ThisRobotId - int('A')) << 6;
+    response += (ControlFlags % 3) << 4;
+    response += (LMSpeed + RMSpeed) % 16;
     
     if(false == type)
     {
@@ -56,7 +56,7 @@ void setup()
     digitalWrite(RightForward, LOW);
     digitalWrite(RightBack, LOW);
       
-    Serial.begin(9600);
+    Serial.begin(115200);
 }
 
 void loop()
